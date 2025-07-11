@@ -2,11 +2,11 @@ use dioxus::prelude::*;
 use std::path::{Path, PathBuf};
 use std::fs;
 
-
 #[component]
 fn FileManager() -> Element {
     let mut current_path = use_signal(|| PathBuf::from("."));
-    let mut dir_contents = use_resource(move || async move {
+    
+    let dir_contents = use_resource(move || async move {
         read_dir_contents(&current_path())
     });
 
@@ -33,49 +33,42 @@ fn FileManager() -> Element {
                     },
                 }
             }
-            // File listing
-            match &*dir_contents.read_unchecked.clone() {
-                Some(Ok(contents)) => rsx! {
-                    table {
-                        for entry in contents {
-                            tr {
-                                td {
-                                    if entry.is_dir {
-                                        "📁"
-                                    } else {
-                                        "📄"
-                                    }
+            // File listing - simplified without error handling
+            table {
+                if let Some(Ok(entries)) = dir_contents.read().as_ref() {
+                    for entry in entries {
+                        tr { key: "{entry.path.display()}",
+                            td {
+                                if entry.is_dir {
+                                    "📁"
+                                } else {
+                                    "📄"
                                 }
-                                td {
-                                    button {
-                                        onclick: move |_| {
-                                            if entry.is_dir {
-                                                current_path.set(entry.path.clone());
-                                            }
-                                        },
-                                        "{entry.name}"
-                                    }
+                            }
+                            td {
+                                button {
+                                    onclick: move |_| {
+                                        if entry.is_dir {
+                                            current_path.set(entry.path.clone());
+                                        }
+                                    },
+                                    "{entry.name}"
                                 }
-                                td {
-                                    if !entry.is_dir {
-                                        "{entry.size} bytes"
-                                    }
+                            }
+                            td {
+                                if !entry.is_dir {
+                                    "{entry.size} bytes"
                                 }
                             }
                         }
                     }
-                },
-                Some(Err(err)) => rsx! {
-                    div { "Error reading directory: {err}" }
-                },
-                None => rsx! {
-                    div { "Loading..." }
-                },
+                }
             }
         }
     }
 }
 
+#[derive(Clone)]
 struct DirEntry {
     name: String,
     path: PathBuf,
